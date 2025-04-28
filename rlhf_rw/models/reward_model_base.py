@@ -136,6 +136,27 @@ class MyRewardBase:
             nn.Dropout(p=p_2),
         )
         self.norm_layer_fix = nn.LayerNorm(hidden_size)
+    def load_fx_model_4(
+            self,
+            hidden_size,
+            remap=False,
+            fp_dropout=[0.0, 0.3],
+    ):
+        p_1, p_2 = fp_dropout
+        self.modelTokenizer = self.tokenizer
+        # No FixationsPredictor model is loaded for random embeddings
+        num_features = int(sum(self.features_used))
+        # Projector remains to shape random features into hidden_size
+        self.fixations_embedding_projector = nn.Sequential(
+            nn.Linear(num_features, 128),
+            nn.LayerNorm(128),
+            nn.ReLU(),
+            nn.Dropout(p=p_1),
+            nn.Linear(128, hidden_size),
+            nn.Dropout(p=p_2),
+        )
+        self.norm_layer_fix = nn.LayerNorm(hidden_size)
+
 
     def _compute_fixations(
         self, input_ids, attention_mask, remap=False, fixations_model_version=1
@@ -158,6 +179,28 @@ class MyRewardBase:
                 text_tokenized_fix,
                 sentences,
             ) = self.FP_model._compute_mapped_fixations(input_ids, attention_mask)
+
+        elif fixations_model_version == 4:
+            # Generate random embeddings with shape (batch_size, seq_len, num_features)
+            batch_size, seq_len = input_ids.size()
+            num_features = sum(self.features_used)
+            fixations = torch.rand(
+                batch_size, seq_len, 5,
+                device=input_ids.device, dtype=torch.float
+            )
+            fixations_attention_mask = torch.ones(
+                (batch_size, seq_len),
+                device=input_ids.device,
+                dtype=attention_mask.dtype
+            )
+            return (
+                fixations,
+                fixations_attention_mask,
+                None,  # mapped_fixations (unused)
+                None,  # text_tokenized_model (unused)
+                None,  # text_tokenized_fix (unused)
+                None,  # sentences (unused)
+            )
         if remap:
             fixations_attention_mask = attention_mask
         return (
@@ -293,6 +336,8 @@ class MyRewardBase:
                     remap=remap,
                     fixations_model_version=fixations_model_version,
                 )
+                print(fixations.shape)
+                print(fixations_attention_mask.shape)
                 del text_tokenized_fix, text_tokenized_model, sentences
                 if remap:
                     fixations = mapped_fixations
@@ -307,7 +352,7 @@ class MyRewardBase:
                 # If the result is found in the cache, convert back to tensors
                 fixations = result["fixations"].to(device)
                 fixations_attention_mask = result["fixations_attention_mask"].to(device)
-            if fixations_model_version == 2:
+            if fixations_model_version == 2 or fixations_model_version == 4:
                 idx = np.where(np.array(self.features_used) == 1)[0]
                 fixations = fixations[:, :, idx]
             fixations_all.append(fixations.squeeze())

@@ -112,6 +112,13 @@ def create_dynamic_class_RewardConcatenate(base_class=LlamaForSequenceClassifica
                         remap=False,
                         load_fix_model=self.load_fix_model,
                     )
+
+                elif self.fixations_model_version == 4:
+                    self.load_fx_model_4(
+                        config.hidden_size,
+                        fp_dropout=self.fp_dropout,
+                        remap=False,
+                    )
                 else:
                     raise ValueError(
                         f"Fixations model version {self.fixations_model_version} not supported"

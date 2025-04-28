@@ -411,7 +411,6 @@ class DatasetProceserReward(DatasetProceser):
             article_text = group["info.article"].dropna().iloc[0] \
                 if group["info.article"].notna().any() \
                 else group["info.post"].iloc[0]
-            print(f'Article:\n{article_text}\n-----\nChosen:\n{high["summary.text"]}\n-----\nRejected:\n{low["summary.text"]}')
             records.append({
                 "question": 'Summarize this:\n' + article_text,
                 "chosen": 'Summary:' + high["summary.text"],
