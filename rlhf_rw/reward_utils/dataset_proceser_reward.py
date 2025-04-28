@@ -8,6 +8,7 @@ from transformers import AutoTokenizer
 from sklearn.model_selection import KFold
 from typing import Union
 import re
+from rich.markup import escape
 
 B_INST, E_INST = "[INST]", "[/INST]"
 B_SYS, E_SYS = "<<SYS>>\n", "\n<</SYS>>\n\n"
@@ -406,14 +407,15 @@ class DatasetProceserReward(DatasetProceser):
             # lowest = first, highest = last
             low = sorted_group.iloc[0]
             high = sorted_group.iloc[-1]
+
             article_text = group["info.article"].dropna().iloc[0] \
                 if group["info.article"].notna().any() \
                 else group["info.post"].iloc[0]
-
+            print(f'Article:\n{article_text}\n-----\nChosen:\n{high["summary.text"]}\n-----\nRejected:\n{low["summary.text"]}')
             records.append({
-                "question": article_text,
-                "chosen": high["summary.text"],
-                "rejected": low["summary.text"],
+                "question": 'Summarize this:\n' + article_text,
+                "chosen": 'Summary:' + high["summary.text"],
+                "rejected": 'Summary:' + low["summary.text"],
             })
 
         return pd.DataFrame(records)
@@ -462,6 +464,8 @@ class DatasetProceserReward(DatasetProceser):
             answer_name="rejected",
             chat_name="rejected_chat",
         )
+        data_split["chosen_chat"] = data_split["chosen_chat"].map(escape)
+        data_split["rejected_chat"] = data_split["rejected_chat"].map(escape)
         if max_length:
             data_split = self.filter_df_lenght_columns(
                 df=data_split,
