@@ -16,11 +16,11 @@ B_TEXT, B_TEXT = "<s>", "</s>"
 
 
 def preprocess_data_reward(
-    data: pd.DataFrame,
-    tokenizer: AutoTokenizer,
-    chosen_name: str,
-    rejected_name: str,
-    max_tokens=None,
+        data: pd.DataFrame,
+        tokenizer: AutoTokenizer,
+        chosen_name: str,
+        rejected_name: str,
+        max_tokens=None,
 ) -> dict:
     data_processed = {
         "input_ids_chosen": [],
@@ -53,18 +53,18 @@ def preprocess_data_reward(
 
 class DatasetProceserReward(DatasetProceser):
     def __init__(
-        self,
-        data,
-        train_samples=0,
-        dataset_name="OpenAssistant/oasst1",
-        model_name="",
-        max_length=None,
-        tokenizer=None,
-        fold=0,
-        seed=42,
-        test_split=0.2,
-        validation_split=0.15,
-        subsample_percentage=1,
+            self,
+            data,
+            train_samples=0,
+            dataset_name="OpenAssistant/oasst1",
+            model_name="",
+            max_length=None,
+            tokenizer=None,
+            fold=0,
+            seed=42,
+            test_split=0.2,
+            validation_split=0.15,
+            subsample_percentage=1,
     ):
         super().__init__(
             data=data,
@@ -99,16 +99,16 @@ class DatasetProceserReward(DatasetProceser):
 
     @classmethod
     def from_datasets(
-        cls,
-        dataset_name="OpenAssistant/oasst1",
-        dataset_config: str = None,
-        train_samples=0,
-        model_name="",
-        split="",
-        tokenizer=None,
-        fold=0,
-        subsample_percentage=1,
-        max_length=None,
+            cls,
+            dataset_name="OpenAssistant/oasst1",
+            dataset_config: str = None,
+            train_samples=0,
+            model_name="",
+            split="",
+            tokenizer=None,
+            fold=0,
+            subsample_percentage=1,
+            max_length=None,
     ):
         if split != "":
             data = load_dataset(dataset_name, dataset_config, split=split, trust_remote_code=True)
@@ -197,6 +197,7 @@ class DatasetProceserReward(DatasetProceser):
                 "test": train_test_split2["test"],
             }
         self.data = DatasetDict(data_dict)
+
     # def preprocess_oasst1(self):
     #     # check if self.data is DatasetDict type
     #     if isinstance(self.data, DatasetDict):
@@ -259,7 +260,7 @@ class DatasetProceserReward(DatasetProceser):
         return data_split
 
     def _preprocess_oasst1_split(
-        self, data_split: Union[Dataset, pd.DataFrame]
+            self, data_split: Union[Dataset, pd.DataFrame]
     ) -> pd.DataFrame:
         if not isinstance(data_split, pd.DataFrame):
             data_split = data_split.to_pandas()
@@ -321,7 +322,7 @@ class DatasetProceserReward(DatasetProceser):
         return df
 
     def _preprocess_split(
-        self, data_split: Union[Dataset, pd.DataFrame]
+            self, data_split: Union[Dataset, pd.DataFrame]
     ) -> pd.DataFrame:
         if not isinstance(data_split, pd.DataFrame):
             data_split = data_split.to_pandas()
@@ -330,7 +331,7 @@ class DatasetProceserReward(DatasetProceser):
         return data_split
 
     def _preprocess_allenai(
-        self, data_split: Union[Dataset, pd.DataFrame]
+            self, data_split: Union[Dataset, pd.DataFrame]
     ) -> pd.DataFrame:
         if not isinstance(data_split, pd.DataFrame):
             data_split = data_split.to_pandas()
@@ -380,9 +381,8 @@ class DatasetProceserReward(DatasetProceser):
                 )
         return pd.DataFrame(prompts)
 
-
     def _preprocess_summarize_from_feedback_split(
-        self, data_split: Union[Dataset, pd.DataFrame]
+            self, data_split: Union[Dataset, pd.DataFrame]
     ) -> pd.DataFrame:
 
         # 1. Convert to pandas
@@ -401,7 +401,6 @@ class DatasetProceserReward(DatasetProceser):
         groups = working.groupby("info.id")
         records = []
         for article, group in groups:
-
             # sort by summary.axes.overall
             sorted_group = group.sort_values("summary.axes.overall")
             # lowest = first, highest = last
@@ -419,135 +418,169 @@ class DatasetProceserReward(DatasetProceser):
 
         return pd.DataFrame(records)
 
-
-    def _preprocess_general_split(
-        self, data_split: Union[Dataset, pd.DataFrame], max_length: int = None
-    ) -> pd.DataFrame:
-        # -------- custom preprocessing----------#
+    def _preprocess_CodeUltraFeedback_standard_split(
+            self, data_split: Union[Dataset, pd.DataFrame]
+                              ) -> pd.DataFrame:
         if not isinstance(data_split, pd.DataFrame):
-            data_split = data_split.to_pandas()
-        if "OpenAssistant/oasst1" in self.dataset_name:
-            data_split = self._preprocess_oasst1_split(data_split)
-        elif "HelpSteer2" in self.dataset_name:
-            data_split = self._preprocess_HelpSteer2_split(data_split)
-        elif "Anthropic/hh-rlhf" in self.dataset_name:
-            data_split = self._preprocess_hhrlhf_split(data_split)
-        elif "argilla" in self.dataset_name:
-            data_split = self._preprocess_split(data_split)
-        elif "openbmb/UltraFeedback" in self.dataset_name:
-            data_split = self._preprocess_UltraFeedback_split(data_split)
-        elif "allenai/reward-bench" in self.dataset_name:
-            data_split = self._preprocess_allenai(data_split)
-        elif "openai/summarize_from_feedback" in self.dataset_name:
-            data_split = self._preprocess_summarize_from_feedback_split(data_split)
-        # -------- custom preprocessing----------#
-        # expects in each row a question, chosen, rejected
-        data_split = self._preprocess_convert_chat(data_split, max_length)
-        return data_split
-
-    def _preprocess_convert_chat(self, data_split, max_length):
-        """
-        Prepare data for the input expected by the reward trainer
-        """
-        data_split = self.format_chat(
-            data_split,
-            remove_columns=False,
-            question_name="question",
-            answer_name="chosen",
-            chat_name="chosen_chat",
-        )
-        data_split = self.format_chat(
-            data_split,
-            remove_columns=False,
-            question_name="question",
-            answer_name="rejected",
-            chat_name="rejected_chat",
-        )
-        data_split["chosen_chat"] = data_split["chosen_chat"].map(escape)
-        data_split["rejected_chat"] = data_split["rejected_chat"].map(escape)
-        if max_length:
-            data_split = self.filter_df_lenght_columns(
-                df=data_split,
-                column_names=["chosen_chat", "rejected_chat"],
-                max_length=max_length,
-            )
-        return data_split
-
-    @staticmethod
-    def filter_instances_lenght(
-        prompter: pd.DataFrame, assistant: pd.DataFrame, max_length: int = 350
-    ):
-        # count how many assistant responses has any prompt filterinf in the dataframe by prompter messague id = assistant parent id
-        instances = {}
-        for index, row in prompter.iterrows():
-            instances[row["message_id"]] = {}
-            instances[row["text"]] = row.text
-            replies = assistant[assistant["parent_id"] == row["message_id"]]
-            instances[row["message_id"]]["replies"] = replies
-            replies = replies[replies["text"].str.len() < max_length]
-            instances[row["message_id"]]["number_of_replies"] = replies.shape[0]
-            instances[row["message_id"]]["max_lenght"] = replies.text.str.len().max()
-            # filter by lenght < 350
-            print("max lenght: ", instances[row["message_id"]]["max_lenght"])
-            instances[row["message_id"]]["min_lenght"] = replies.text.str.len().min()
-            print("min lenght: ", instances[row["message_id"]]["min_lenght"])
-
-    @staticmethod
-    def plot_histogram(instances: dict):
-        # convert instances to dataframe
-        instances = pd.DataFrame.from_dict(instances, orient="index")
-        # Create a histogram for the 'column_name'
-        plt.hist(instances["max_lenght"], bins=5, edgecolor="black")
-        plt.title("Histogram of max_lenght")
-        plt.xlabel("Values")
-        plt.ylabel("Frequency")
-        plt.show()
-
-    @staticmethod
-    def _process_responses_chosen_rejected(df: pd.DataFrame) -> pd.DataFrame:
-        if "id" in df.columns:
-            df["tup"] = list(zip(df["answer"], df["feedback"], df["id"]))
+            df = data_split.to_pandas()
         else:
-            df["tup"] = list(zip(df["answer"], df["feedback"]))
-        df_g = df.groupby("question")["tup"].apply(list).reset_index()
-        df_g["sorted_tup"] = df_g["tup"].apply(lambda x: sorted(x, key=itemgetter(1)))
-        df_g["chosen"] = df_g["sorted_tup"].apply(lambda x: x[-1][0])
-        df_g["chosen_score"] = df_g["sorted_tup"].apply(lambda x: x[-1][1])
-        df_g["rejected"] = df_g["sorted_tup"].apply(lambda x: x[0][0])
-        df_g["rejected_score"] = df_g["sorted_tup"].apply(lambda x: x[0][1])
-        if "id" in df.columns:
-            df_g["chosen_id"] = df_g["sorted_tup"].apply(lambda x: x[-1][2])
-            df_g["rejected_id"] = df_g["sorted_tup"].apply(lambda x: x[0][2])
-        df_g = df_g.dropna()
-        # delete rows where the chosen_score is the same as the rejected_score
-        df_g = df_g[df_g["chosen_score"] != df_g["rejected_score"]]
-        df_g = df_g.drop(
-            columns=["tup", "sorted_tup", "chosen_score", "rejected_score"]
-        )
-        # df_g = df_g[(df_g['chosen_score']>=4.0) & (df_g['rejected_score']<4.0)]
-        return df_g
+            df = data_split.copy()
 
-    @staticmethod
-    # TODO CHANGE FOR CHAT TEMPLATE
-    def _add_question_answer(df: pd.DataFrame) -> pd.DataFrame:
-        df["chosen"] = "Human: " + df["question"] + "\n" + " Assistant: " + df["chosen"]
-        df["rejected"] = (
+        records = []
+
+        for _, row in df.iterrows():
+            # both lists have length 2: [prompt, response]
+            prompt = row["chosen"][0]["content"]
+            chosen_resp = row["chosen"][1]["content"]
+            rejected_resp = row["rejected"][1]["content"]
+            records.append({
+                "question": prompt,
+                "chosen": chosen_resp,
+                "rejected": rejected_resp,
+                "chosen_score": row.get("chosen_score"),
+                "rejected_score": row.get("rejected_score"),
+            })
+
+        return pd.DataFrame(records)
+
+
+def _preprocess_general_split(
+        self, data_split: Union[Dataset, pd.DataFrame], max_length: int = None
+) -> pd.DataFrame:
+    # -------- custom preprocessing----------#
+    if not isinstance(data_split, pd.DataFrame):
+        data_split = data_split.to_pandas()
+    if "OpenAssistant/oasst1" in self.dataset_name:
+        data_split = self._preprocess_oasst1_split(data_split)
+    elif "HelpSteer2" in self.dataset_name:
+        data_split = self._preprocess_HelpSteer2_split(data_split)
+    elif "Anthropic/hh-rlhf" in self.dataset_name:
+        data_split = self._preprocess_hhrlhf_split(data_split)
+    elif "argilla" in self.dataset_name:
+        data_split = self._preprocess_split(data_split)
+    elif "openbmb/UltraFeedback" in self.dataset_name:
+        data_split = self._preprocess_UltraFeedback_split(data_split)
+    elif "allenai/reward-bench" in self.dataset_name:
+        data_split = self._preprocess_allenai(data_split)
+    elif "openai/summarize_from_feedback" in self.dataset_name:
+        data_split = self._preprocess_summarize_from_feedback_split(data_split)
+    elif "CodeUltraFeedback-standard" in self.dataset_name:
+        data_split = self._preprocess_CodeUltraFeedback_standard_split(data_split)
+    # -------- custom preprocessing----------#
+    # expects in each row a question, chosen, rejected
+    data_split = self._preprocess_convert_chat(data_split, max_length)
+    return data_split
+
+
+def _preprocess_convert_chat(self, data_split, max_length):
+    """
+    Prepare data for the input expected by the reward trainer
+    """
+    data_split = self.format_chat(
+        data_split,
+        remove_columns=False,
+        question_name="question",
+        answer_name="chosen",
+        chat_name="chosen_chat",
+    )
+    data_split = self.format_chat(
+        data_split,
+        remove_columns=False,
+        question_name="question",
+        answer_name="rejected",
+        chat_name="rejected_chat",
+    )
+    data_split["chosen_chat"] = data_split["chosen_chat"].map(escape)
+    data_split["rejected_chat"] = data_split["rejected_chat"].map(escape)
+    if max_length:
+        data_split = self.filter_df_lenght_columns(
+            df=data_split,
+            column_names=["chosen_chat", "rejected_chat"],
+            max_length=max_length,
+        )
+    return data_split
+
+
+@staticmethod
+def filter_instances_lenght(
+        prompter: pd.DataFrame, assistant: pd.DataFrame, max_length: int = 350
+):
+    # count how many assistant responses has any prompt filterinf in the dataframe by prompter messague id = assistant parent id
+    instances = {}
+    for index, row in prompter.iterrows():
+        instances[row["message_id"]] = {}
+        instances[row["text"]] = row.text
+        replies = assistant[assistant["parent_id"] == row["message_id"]]
+        instances[row["message_id"]]["replies"] = replies
+        replies = replies[replies["text"].str.len() < max_length]
+        instances[row["message_id"]]["number_of_replies"] = replies.shape[0]
+        instances[row["message_id"]]["max_lenght"] = replies.text.str.len().max()
+        # filter by lenght < 350
+        print("max lenght: ", instances[row["message_id"]]["max_lenght"])
+        instances[row["message_id"]]["min_lenght"] = replies.text.str.len().min()
+        print("min lenght: ", instances[row["message_id"]]["min_lenght"])
+
+
+@staticmethod
+def plot_histogram(instances: dict):
+    # convert instances to dataframe
+    instances = pd.DataFrame.from_dict(instances, orient="index")
+    # Create a histogram for the 'column_name'
+    plt.hist(instances["max_lenght"], bins=5, edgecolor="black")
+    plt.title("Histogram of max_lenght")
+    plt.xlabel("Values")
+    plt.ylabel("Frequency")
+    plt.show()
+
+
+@staticmethod
+def _process_responses_chosen_rejected(df: pd.DataFrame) -> pd.DataFrame:
+    if "id" in df.columns:
+        df["tup"] = list(zip(df["answer"], df["feedback"], df["id"]))
+    else:
+        df["tup"] = list(zip(df["answer"], df["feedback"]))
+    df_g = df.groupby("question")["tup"].apply(list).reset_index()
+    df_g["sorted_tup"] = df_g["tup"].apply(lambda x: sorted(x, key=itemgetter(1)))
+    df_g["chosen"] = df_g["sorted_tup"].apply(lambda x: x[-1][0])
+    df_g["chosen_score"] = df_g["sorted_tup"].apply(lambda x: x[-1][1])
+    df_g["rejected"] = df_g["sorted_tup"].apply(lambda x: x[0][0])
+    df_g["rejected_score"] = df_g["sorted_tup"].apply(lambda x: x[0][1])
+    if "id" in df.columns:
+        df_g["chosen_id"] = df_g["sorted_tup"].apply(lambda x: x[-1][2])
+        df_g["rejected_id"] = df_g["sorted_tup"].apply(lambda x: x[0][2])
+    df_g = df_g.dropna()
+    # delete rows where the chosen_score is the same as the rejected_score
+    df_g = df_g[df_g["chosen_score"] != df_g["rejected_score"]]
+    df_g = df_g.drop(
+        columns=["tup", "sorted_tup", "chosen_score", "rejected_score"]
+    )
+    # df_g = df_g[(df_g['chosen_score']>=4.0) & (df_g['rejected_score']<4.0)]
+    return df_g
+
+
+@staticmethod
+# TODO CHANGE FOR CHAT TEMPLATE
+def _add_question_answer(df: pd.DataFrame) -> pd.DataFrame:
+    df["chosen"] = "Human: " + df["question"] + "\n" + " Assistant: " + df["chosen"]
+    df["rejected"] = (
             "Human: " + df["question"] + "\n" + " Assistant: " + df["rejected"]
-        )
-        return df
+    )
+    return df
 
-    def _add_question_answer_mistral(self, df: pd.DataFrame) -> pd.DataFrame:
-        df["chosen"] = df.apply(
-            lambda row: self.format_to_mistralft(row["question"], row["chosen"], ""),
-            axis=1,
-        )
-        df["rejected"] = df.apply(
-            lambda row: self.format_to_mistralft(row["question"], row["rejected"], ""),
-            axis=1,
-        )
-        return df
 
-    def preprocess_data_reward(
+def _add_question_answer_mistral(self, df: pd.DataFrame) -> pd.DataFrame:
+    df["chosen"] = df.apply(
+        lambda row: self.format_to_mistralft(row["question"], row["chosen"], ""),
+        axis=1,
+    )
+    df["rejected"] = df.apply(
+        lambda row: self.format_to_mistralft(row["question"], row["rejected"], ""),
+        axis=1,
+    )
+    return df
+
+
+def preprocess_data_reward(
         self,
         tokenizer: AutoTokenizer = None,
         batch_size: int = 1000,
@@ -555,39 +588,39 @@ class DatasetProceserReward(DatasetProceser):
         rejected_name: str = "rejected_chat",
         eval_mode: bool = False,
         max_tokens=None,
-    ):
-        if tokenizer is None:
-            if self.tokenizer is None:
-                raise ValueError("Tokenizer is required")
-            else:
-                tokenizer = self.tokenizer
-        function_process = partial(
-            preprocess_data_reward,
-            tokenizer=tokenizer,
-            chosen_name=chosen_name,
-            rejected_name=rejected_name,
-            max_tokens=max_tokens,
+):
+    if tokenizer is None:
+        if self.tokenizer is None:
+            raise ValueError("Tokenizer is required")
+        else:
+            tokenizer = self.tokenizer
+    function_process = partial(
+        preprocess_data_reward,
+        tokenizer=tokenizer,
+        chosen_name=chosen_name,
+        rejected_name=rejected_name,
+        max_tokens=max_tokens,
+    )
+
+    if "test" in self.data:
+        self.data["test"] = self.data["test"].map(
+            function_process,
+            batched=True,
+            batch_size=batch_size,
         )
-
-        if "test" in self.data:
-            self.data["test"] = self.data["test"].map(
-                function_process,
-                batched=True,
-                batch_size=batch_size,
-            )
-        if eval_mode is True:
-            return self.data
-
-        if "validation" in self.data:
-            self.data["validation"] = self.data["validation"].map(
-                function_process,
-                batched=True,
-                batch_size=batch_size,
-            )
-        if "train" in self.data:
-            self.data["train"] = self.data["train"].map(
-                function_process,
-                batched=True,
-                batch_size=batch_size,
-            )
+    if eval_mode is True:
         return self.data
+
+    if "validation" in self.data:
+        self.data["validation"] = self.data["validation"].map(
+            function_process,
+            batched=True,
+            batch_size=batch_size,
+        )
+    if "train" in self.data:
+        self.data["train"] = self.data["train"].map(
+            function_process,
+            batched=True,
+            batch_size=batch_size,
+        )
+    return self.data
