@@ -111,9 +111,9 @@ class DatasetProceserReward(DatasetProceser):
         max_length=None,
     ):
         if split != "":
-            data = load_dataset(dataset_name, dataset_config, split=split)
+            data = load_dataset(dataset_name, dataset_config, split=split, trust_remote_code=True)
         else:
-            data = load_dataset(dataset_name, dataset_config)
+            data = load_dataset(dataset_name, dataset_config, trust_remote_code=True)
         return cls(
             data=data,
             dataset_name=dataset_name,
