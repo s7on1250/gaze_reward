@@ -336,8 +336,6 @@ class MyRewardBase:
                     remap=remap,
                     fixations_model_version=fixations_model_version,
                 )
-                print(fixations.shape)
-                print(fixations_attention_mask.shape)
                 del text_tokenized_fix, text_tokenized_model, sentences
                 if remap:
                     fixations = mapped_fixations
