@@ -442,6 +442,7 @@ class DatasetProceserReward(DatasetProceser):
         return pd.DataFrame(records)
 
     def _preprocess_qa_comparisons_split(
+            self,
             data_split: Union[Dataset, pd.DataFrame]
     ) -> pd.DataFrame:
         """
