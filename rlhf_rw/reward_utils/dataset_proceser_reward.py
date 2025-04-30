@@ -441,6 +441,28 @@ class DatasetProceserReward(DatasetProceser):
 
         return pd.DataFrame(records)
 
+    def _preprocess_qa_comparisons_split(
+            data_split: Union[Dataset, pd.DataFrame]
+    ) -> pd.DataFrame:
+        """
+        Preprocess the kastan/rlhf-qa-comparisons dataset by renaming columns
+        and dropping the index column.
+        """
+        if not isinstance(data_split, pd.DataFrame):
+            data_split = data_split.to_pandas()
+        # Rename to match expected column names
+        data_split = data_split.rename(
+            columns={
+                "Question": "question",
+                "Chosen": "chosen",
+                "Rejected": "rejected",
+            }
+        )
+        # Drop the auto-generated index column
+        if "__index_level_0__" in data_split.columns:
+            data_split = data_split.drop(columns=["__index_level_0__"])
+        return data_split
+
 
     def _preprocess_general_split(
         self, data_split: Union[Dataset, pd.DataFrame], max_length: int = None
@@ -464,6 +486,8 @@ class DatasetProceserReward(DatasetProceser):
             data_split = self._preprocess_summarize_from_feedback_split(data_split)
         elif "CodeUltraFeedback-standard" in self.dataset_name:
             data_split = self._preprocess_CodeUltraFeedback_standard_split(data_split)
+        elif "kastan/rlhf-qa-comparisons" in self.dataset_name:
+            data_split = self._preprocess_qa_comparisons_split(data_split)
         # -------- custom preprocessing----------#
         # expects in each row a question, chosen, rejected
         data_split = self._preprocess_convert_chat(data_split, max_length)
