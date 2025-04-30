@@ -55,6 +55,9 @@ cover/
 *.mo
 *.pot
 
+buffer_train.lmdb/*
+
+
 # Django stuff:
 *.log
 local_settings.py
