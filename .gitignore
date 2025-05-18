@@ -59,7 +59,7 @@ cover/
 
 buffer_train.lmdb/*
 models_save/*
-
+wandb
 
 # Django stuff:
 *.log
