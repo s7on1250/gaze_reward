@@ -55,7 +55,10 @@ cover/
 *.mo
 *.pot
 
+.sh
+
 buffer_train.lmdb/*
+models_save/*
 
 
 # Django stuff:
