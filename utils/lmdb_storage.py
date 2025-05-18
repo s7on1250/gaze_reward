@@ -4,16 +4,29 @@ import csv
 import sys
 import torch
 import pathlib
+import os
 
 
 class LMDBStorage:
-    def __init__(self, db_path="buffer_train.lmdb", map_size=1024 * 1024 * 1024 * 20):
+    def __init__(self, db_path, map_size=1024 * 1024 * 1024 * 10):  # 10GB default map size
         self.db_path = db_path
-
         self.map_size = map_size
-        self.env = lmdb.open(db_path, map_size=map_size)
-        # with self.env.begin(write=True) as txn:
-        # self.count = pickle.loads(txn.get(b'count', pickle.dumps(0)))
+        self.env = None
+        self._ensure_db_exists()
+
+    def _ensure_db_exists(self):
+        if not os.path.exists(self.db_path):
+            os.makedirs(self.db_path, exist_ok=True)
+        self.env = lmdb.open(
+            self.db_path,
+            map_size=self.map_size,
+            subdir=True,
+            readonly=False,
+            metasync=True,
+            sync=True,
+            map_async=True,
+            mode=0o666,
+        )
 
     def __enter__(self):
         return self
@@ -21,15 +34,27 @@ class LMDBStorage:
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
 
-    def add(self, key, item, use_pickle=True):
-        with self.env.begin(write=True) as txn:
-            key = f"{key}".encode("ascii")
-            if use_pickle:
-                txn.put(key, pickle.dumps(item))
-            else:
-                txn.put(key, item)
-            # self.count += 1
-            # txn.put(b'count', pickle.dumps(self.count))
+    def add(self, key, item):
+        try:
+            with self.env.begin(write=True) as txn:
+                txn.put(key.encode(), pickle.dumps(item))
+        except lmdb.MapFullError:
+            # If database is full, try to increase map size and retry
+            self.env.close()
+            self.map_size *= 2  # Double the map size
+            self.env = lmdb.open(
+                self.db_path,
+                map_size=self.map_size,
+                subdir=True,
+                readonly=False,
+                metasync=True,
+                sync=True,
+                map_async=True,
+                mode=0o666,
+            )
+            # Retry the operation
+            with self.env.begin(write=True) as txn:
+                txn.put(key.encode(), pickle.dumps(item))
 
     def getItem(self, key, use_pickle=True):
         with self.env.begin(write=False) as txn:

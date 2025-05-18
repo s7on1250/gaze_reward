@@ -188,6 +188,8 @@ if __name__ == "__main__":
         "-fmv", "--fixations_model_version", help="fixations_model_version", default="1"
     )
     parser.add_argument("--features_used", help="features used", default="1,1,1,1,1")
+    parser.add_argument("--roberta_model_paths", help="path to directory containing roberta-large models for version 6", default=None)
+    parser.add_argument("--num_roberta_models", type=int, help="number of roberta models to use in ensemble for version 6", default=None)
 
     args = parser.parse_args()
     seed = int(args.seed)
@@ -228,12 +230,23 @@ if __name__ == "__main__":
     fp_dropout = [float(element) for element in str(args.fp_dropout).split(",")]
     fixations_model_version = int(args.fixations_model_version)
     features_used = [int(element) for element in str(args.features_used).split(",")]
+    roberta_model_paths = args.roberta_model_paths
+    num_roberta_models = args.num_roberta_models
     max_length = int(args.max_length)
     max_tokens = None
     if fixations_model_version == 2 and concat is True:
         # if fixations_model_version == 2 and use_softprompt is True:
         max_tokens = 1350
         max_length = 10000
+
+    # Validate roberta model paths for version 6
+    if fixations_model_version == 6:
+        if roberta_model_paths is None:
+            raise ValueError("roberta_model_paths must be provided when using fixations_model_version 6")
+        if not os.path.exists(roberta_model_paths):
+            raise ValueError(f"roberta_model_paths {roberta_model_paths} does not exist")
+        if num_roberta_models is not None and num_roberta_models < 1:
+            raise ValueError("num_roberta_models must be at least 1")
 
     # create folder name with all args
     name = create_model_name(model_name, dataset_name, concat, use_softprompt)
@@ -268,6 +281,8 @@ if __name__ == "__main__":
         features_used=features_used,
         max_length=max_length,
         max_tokens=max_tokens,
+        roberta_model_paths=roberta_model_paths,
+        num_roberta_models=num_roberta_models,
     )
     folder_name_path, folder_name_unique_path = get_unique_folder_name(
         str(pathlib.Path(__file__).parent.resolve().parent.resolve()) + "/models_save/",

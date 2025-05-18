@@ -38,6 +38,8 @@ class ModelFactory:
         fixations_model_version=1,
         load_fix_model=True,
         features_used=[1, 1, 1, 1, 1],
+        roberta_model_paths=None,
+        num_roberta_models=None,
     ):
         self.model_name = model_name
         self.bnb_config = bnb_config
@@ -52,6 +54,8 @@ class ModelFactory:
         self.fixations_model_version = fixations_model_version
         self.load_fix_model = load_fix_model
         self.features_used = features_used
+        self.roberta_model_paths = roberta_model_paths
+        self.num_roberta_models = num_roberta_models
 
     def create_model(self):
         if "mistral" in self.model_name:
@@ -72,6 +76,8 @@ class ModelFactory:
                 fixations_model_version=self.fixations_model_version,
                 load_fix_model=self.load_fix_model,
                 features_used=self.features_used,
+                roberta_model_paths=self.roberta_model_paths,
+                num_roberta_models=self.num_roberta_models
             )
         MyDynamicClass = create_dynamic_class_RewardAdd(base_class)
         # Instantiate the dynamic class

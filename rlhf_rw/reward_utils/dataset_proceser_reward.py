@@ -464,6 +464,19 @@ class DatasetProceserReward(DatasetProceser):
             data_split = data_split.drop(columns=["__index_level_0__"])
         return data_split
 
+    def _preprocess_medical_rlhf_split(self, data_split: Union[Dataset, pd.DataFrame]) -> pd.DataFrame:
+        """Preprocess the medical-rlhf-pairs dataset format."""
+        if not isinstance(data_split, pd.DataFrame):
+            data_split = data_split.to_pandas()
+        
+        # Rename columns to match expected format
+        data_split = data_split.rename(columns={
+            'instruction': 'question',
+            'positive': 'chosen',
+            'negative': 'rejected'
+        })
+        
+        return data_split
 
     def _preprocess_general_split(
         self, data_split: Union[Dataset, pd.DataFrame], max_length: int = None
@@ -489,6 +502,8 @@ class DatasetProceserReward(DatasetProceser):
             data_split = self._preprocess_CodeUltraFeedback_standard_split(data_split)
         elif "kastan/rlhf-qa-comparisons" in self.dataset_name:
             data_split = self._preprocess_qa_comparisons_split(data_split)
+        elif "WhiteF4lcon/medical-rlhf-pairs" in self.dataset_name:
+            data_split = self._preprocess_medical_rlhf_split(data_split)
         # -------- custom preprocessing----------#
         # expects in each row a question, chosen, rejected
         data_split = self._preprocess_convert_chat(data_split, max_length)

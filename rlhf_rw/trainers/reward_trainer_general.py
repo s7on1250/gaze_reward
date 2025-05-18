@@ -77,6 +77,8 @@ def model_init_func(
     fixations_model_version=1,
     load_fix_model=True,
     features_used=[1, 1, 1, 1, 1],
+    roberta_model_paths=None,
+    num_roberta_models=None,
 ):
     global model
     try:
@@ -100,6 +102,8 @@ def model_init_func(
         fixations_model_version=fixations_model_version,
         load_fix_model=load_fix_model,
         features_used=features_used,
+        roberta_model_paths=roberta_model_paths,
+        num_roberta_models=num_roberta_models,
     )
 
     model = factory.create_model()
@@ -195,6 +199,8 @@ class RewardTrainerConstructorGeneral(RewardTrainerConstructor):
         features_used=[1, 1, 1, 1, 1],
         max_length=10000,
         max_tokens=None,
+        roberta_model_paths=None,
+        num_roberta_models=None,
     ):
         super().__init__(
             model_name=model_name,
@@ -252,6 +258,8 @@ class RewardTrainerConstructorGeneral(RewardTrainerConstructor):
         self.features_used = features_used
         self.max_length = max_length
         self.max_tokens = max_tokens
+        self.roberta_model_paths = roberta_model_paths
+        self.num_roberta_models = num_roberta_models
 
     def train_model(self, train_samples=0, fold=None, save_folder="./reward_model"):
         if self.use_quantization:
@@ -280,6 +288,8 @@ class RewardTrainerConstructorGeneral(RewardTrainerConstructor):
             fixations_model_version=self.fixations_model_version,
             load_fix_model=self.load_fix_model,
             features_used=self.features_used,
+            roberta_model_paths=self.roberta_model_paths,
+            num_roberta_models=self.num_roberta_models,
         )
         self.tokenizer = model.tokenizer
         self.model = model
@@ -480,3 +490,34 @@ class RewardTrainerConstructorGeneral(RewardTrainerConstructor):
             num_training_steps=num_training_steps,
             min_lr_ratio=self.min_lr_ratio,
         )
+
+    def set_name_run(self):
+        # Create base name with model, dataset and fixation version
+        model_short_name = self.model_name.split('/')[-1]  # Get last part of model name
+        dataset_short_name = self.dataset_name.split('/')[-1]  # Get last part of dataset name
+        self.model_name_log = f"{model_short_name}_fmv{self.fixations_model_version}_{dataset_short_name}"
+        
+        # Add additional configuration details
+        if hasattr(self, "input_layer"):
+            if self.input_layer is not None:
+                self.model_name_log += "_fixlay_" + ",".join(
+                    [str(x) for x in self.input_layer]
+                )
+        if hasattr(self, "freeze_layer"):
+            if self.freeze_layer is not None:
+                self.model_name_log += "_freezlay_" + str(self.freeze_layer)
+        if hasattr(self, "use_quantization"):
+            self.model_name_log += "_quant" if self.use_quantization else ""
+        if hasattr(self, "use_lora"):
+            self.model_name_log += "_lora" if self.use_lora else ""
+        if hasattr(self.model, "freeze"):
+            self.model_name_log += "_freeze" if self.model.freeze else ""
+        prefix = "add_"
+        if hasattr(self, "concat"):
+            if self.concat:
+                if hasattr(self, "use_softprompt"):
+                    if self.use_softprompt:
+                        prefix = "concat_sp_"
+                    else:
+                        prefix = "concat_"
+        self.model_name_log = prefix + self.model_name_log

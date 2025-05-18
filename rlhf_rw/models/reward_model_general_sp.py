@@ -41,6 +41,7 @@ from typing import (
     TypeVar,
 )
 from reward_model_base import MyRewardBase
+from fixations_predictor_model_6 import FixationsPredictor_6
 
 T = TypeVar("T", bound="Module")
 import re
@@ -59,6 +60,8 @@ def create_dynamic_class_RewardConcatenate(base_class=LlamaForSequenceClassifica
             fp_dropout=[0.0, 0.3],
             load_fix_model=True,
             features_used=[1, 1, 1, 1, 1],
+            roberta_model_paths=None,
+            num_roberta_models=None,
             *argv,
             **karg,
         ):
@@ -95,49 +98,86 @@ def create_dynamic_class_RewardConcatenate(base_class=LlamaForSequenceClassifica
             self._load_tokenizer(load_local_folder_name)
             self.thread_local = threading.local()
             self.load_fix_model = load_fix_model
+            self.roberta_model_paths = roberta_model_paths
+            self.num_roberta_models = num_roberta_models
 
             if self.use_softprompt:
+                # Initialize concat tokens for all versions
+                self.concat_tokens = ["<eye/>", "</eye>"]
+                self.tokenizer.add_tokens(self.concat_tokens)
+                self.concat_tokens_ids = [
+                    self.tokenizer.convert_tokens_to_ids(x) for x in self.concat_tokens
+                ]
+
                 if self.fixations_model_version == 1:
-                    # TODO:integrate in pipeline the first version
-                    # self.load_fx_model(
-                    #     config.hidden_size, fp_dropout=self.fp_dropout
-                    # )
                     self.load_fx_model_1(
                         config.hidden_size, fp_dropout=self.fp_dropout, remap=False
                     )
-                elif self.fixations_model_version == 2:
+                elif self.fixations_model_version == 2 or self.fixations_model_version == 5:
                     self.load_fx_model_2(
                         config.hidden_size,
                         fp_dropout=self.fp_dropout,
                         remap=False,
                         load_fix_model=self.load_fix_model,
                     )
-
                 elif self.fixations_model_version == 4:
                     self.load_fx_model_4(
                         config.hidden_size,
                         fp_dropout=self.fp_dropout,
                         remap=False,
                     )
+                elif self.fixations_model_version == 6:
+                    if self.roberta_model_paths is None:
+                        raise ValueError("roberta_model_paths must be provided for fixations_model_version 6")
+                    if not os.path.exists(self.roberta_model_paths):
+                        raise ValueError(f"roberta_model_paths {self.roberta_model_paths} does not exist")
+                    if self.num_roberta_models is None or self.num_roberta_models < 1:
+                        raise ValueError("num_roberta_models must be at least 1 for fixations_model_version 6")
+                    
+                    self.FP_model = FixationsPredictor_6(
+                        model_paths=self.roberta_model_paths,
+                        num_models=self.num_roberta_models
+                    )
+                    self.load_fx_model_6(
+                        config.hidden_size,
+                        fp_dropout=self.fp_dropout,
+                        remap=False,
+                        model_paths=self.roberta_model_paths,
+                        num_models=self.num_roberta_models,
+                    )
+                    self.concat_tokens = ["<eye/>", "</eye>"]
+
+                    self.tokenizer.add_tokens(self.concat_tokens)
+                    self.concat_tokens_ids = [
+                        self.tokenizer.convert_tokens_to_ids(x) for x in self.concat_tokens
+                    ]
                 else:
                     raise ValueError(
                         f"Fixations model version {self.fixations_model_version} not supported"
                     )
-                self.concat_tokens = ["<eye/>", "</eye>"]
-
-                self.tokenizer.add_tokens(self.concat_tokens)
-                self.concat_tokens_ids = [
-                    self.tokenizer.convert_tokens_to_ids(x) for x in self.concat_tokens
-                ]
-
-                # TODO: crear nn.parameter de dos y entrenar esto. duda soft prompting embedding?
-                # TODO: FREEZE EMBEDDING LAYER?
-                # for new_token in new_tokens:
-                #     new_token_id = self.tokenizer.convert_tokens_to_ids(f"{new_token}")
-                #     self.model.model.embed_tokens.weight[new_token_id].requires_grad = True
             # we adjust the model embedding layer to the new changes in the tokenizer.
             self.config.pad_token_id = self.tokenizer.pad_token_id
             self.model.resize_token_embeddings(len(self.tokenizer))
+
+            # Initialize fixation embedding projector
+            num_features = sum(self.features_used)
+            self.fixations_embedding_projector = torch.nn.Sequential(
+                torch.nn.Linear(num_features, 512),
+                torch.nn.LayerNorm(512),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(self.fp_dropout[0]),
+                torch.nn.Linear(512, 2048),
+                torch.nn.LayerNorm(2048),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(self.fp_dropout[1]),
+                torch.nn.Linear(2048, 4096),
+                torch.nn.LayerNorm(4096),
+                torch.nn.ReLU(),
+                torch.nn.Dropout(self.fp_dropout[1])
+            )
+
+            # Layer normalization for fixation features
+            self.norm_layer_fix = torch.nn.LayerNorm(4096)
 
         def forward(
             self,

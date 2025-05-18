@@ -54,6 +54,8 @@ def create_dynamic_class_RewardAdd(base_class=LlamaForSequenceClassification):
             fp_dropout=[0.0, 0.3],
             fixations_model_version=1,
             features_used=[1, 1, 1, 1, 1],
+            roberta_model_paths=None,
+            num_roberta_models=None,
             *argv,
             **karg,
         ):
@@ -89,6 +91,8 @@ def create_dynamic_class_RewardAdd(base_class=LlamaForSequenceClassification):
             self.config.pad_token_id = self.tokenizer.pad_token_id
             self.model.resize_token_embeddings(len(self.tokenizer))
             self.features_used = features_used
+            self.roberta_model_paths = roberta_model_paths
+            self.num_roberta_models = num_roberta_models
 
             if self.fixations_model_version == 1:
                 self.load_fx_model_1(
@@ -96,11 +100,19 @@ def create_dynamic_class_RewardAdd(base_class=LlamaForSequenceClassification):
                     remap=True,
                     fp_dropout=self.fp_dropout,
                 )
-            else:
+            elif self.fixations_model_version == 2:
                 self.load_fx_model_2(
                     hidden_size=config.hidden_size,
                     remap=True,
                     fp_dropout=self.fp_dropout,
+                )
+            elif self.fixations_model_version == 6:
+                self.load_fx_model_6(
+                    hidden_size=config.hidden_size,
+                    remap=True,
+                    fp_dropout=self.fp_dropout,
+                    model_paths=self.roberta_model_paths,
+                    num_models=self.num_roberta_models,
                 )
 
         # def train(self: T, mode: bool = True) -> T:
